@@ -69,7 +69,7 @@ Supabase is not wired yet.
 - `app/` route tree and layouts
 - `components/layout/` dashboard shell pieces
 - `components/ui/` thin reusable UI primitives
-- `lib/utils/response.ts` small API JSON helper
+- `lib/utils/api-response.ts` small API JSON helper
 - `types/` shared API response types
 - `proxy.ts` request interception stub for future protected routes
 
