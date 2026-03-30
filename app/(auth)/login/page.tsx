@@ -1,8 +1,19 @@
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { redirect } from 'next/navigation';
 
-export default function LoginPage() {
+import { LoginForm } from '@/components/auth/login-form';
+import { Card } from '@/components/ui/card';
+import { createClient } from '@/lib/supabase/server';
+
+export default async function LoginPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    redirect('/dashboard');
+  }
+
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-12 sm:px-6">
       <div className="grid w-full max-w-5xl gap-6 lg:grid-cols-[1.15fr_0.85fr]">
@@ -50,34 +61,11 @@ export default function LoginPage() {
               Sign in
             </h2>
             <p className="text-sm leading-6 text-slate-600">
-              Authentication is not connected yet. This screen is here to define
-              the flow and keep the first scaffold production-shaped.
+              Use your Supabase email and password to access the dashboard.
             </p>
           </div>
 
-          <div className="mt-8 space-y-4">
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Work email</span>
-              <Input
-                autoComplete="email"
-                placeholder="founder@utanvetcontrol.hu"
-                type="email"
-              />
-            </label>
-
-            <label className="block space-y-2 text-sm font-medium text-slate-700">
-              <span>Password</span>
-              <Input
-                autoComplete="current-password"
-                placeholder="Coming soon"
-                type="password"
-              />
-            </label>
-
-            <Button className="w-full" disabled>
-              Authentication coming soon
-            </Button>
-          </div>
+          <LoginForm />
         </Card>
       </div>
     </main>
