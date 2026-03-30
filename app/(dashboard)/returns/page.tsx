@@ -1,9 +1,9 @@
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 
 export default function ReturnsPage() {
   return (
     <>
-      <Card className="space-y-3">
+      <Card className="space-y-3 p-6">
         <p className="text-sm font-medium text-slate-500">Returns</p>
         <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
           Returns workspace placeholder
@@ -15,7 +15,7 @@ export default function ReturnsPage() {
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <Card className="space-y-3">
+        <Card className="space-y-3 p-6">
           <h2 className="text-lg font-semibold text-slate-950">
             Planned surface area
           </h2>
@@ -25,7 +25,7 @@ export default function ReturnsPage() {
           </p>
         </Card>
 
-        <Card className="space-y-3 border-dashed">
+        <Card className="space-y-3 border-dashed p-6">
           <h2 className="text-lg font-semibold text-slate-950">
             Not implemented yet
           </h2>

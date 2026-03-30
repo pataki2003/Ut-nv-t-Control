@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 
 const focusAreas = [
   {
@@ -23,7 +23,7 @@ const focusAreas = [
 export default function DashboardPage() {
   return (
     <>
-      <Card className="space-y-4">
+      <Card className="space-y-4 p-6">
         <p className="text-sm font-medium text-slate-500">Overview</p>
         <div className="space-y-3">
           <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
@@ -39,7 +39,7 @@ export default function DashboardPage() {
 
       <section className="grid gap-6 lg:grid-cols-3">
         {focusAreas.map((item) => (
-          <Card className="flex flex-col gap-4" key={item.title}>
+          <Card className="flex flex-col gap-4 p-6" key={item.title}>
             <div className="space-y-2">
               <h2 className="text-lg font-semibold text-slate-950">
                 {item.title}

@@ -1,11 +1,11 @@
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 
 const importStages = ['Upload source file', 'Validate records', 'Preview changes'];
 
 export default function ImportPage() {
   return (
     <>
-      <Card className="space-y-3">
+      <Card className="space-y-3 p-6">
         <p className="text-sm font-medium text-slate-500">Import</p>
         <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
           Data import placeholder
@@ -18,7 +18,7 @@ export default function ImportPage() {
 
       <section className="grid gap-6 md:grid-cols-3">
         {importStages.map((stage, index) => (
-          <Card className="space-y-2" key={stage}>
+          <Card className="space-y-2 p-6" key={stage}>
             <p className="text-sm font-medium text-slate-500">Step {index + 1}</p>
             <h2 className="text-base font-semibold text-slate-950">{stage}</h2>
             <p className="text-sm leading-6 text-slate-600">
