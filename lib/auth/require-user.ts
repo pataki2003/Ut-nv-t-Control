@@ -7,10 +7,10 @@ import { createClient } from '@/lib/supabase/server';
 export class AuthRequiredError extends Error {
   status: number;
 
-  constructor(message = 'Authentication required.') {
+  constructor(message = 'Authentication required.', status = 401) {
     super(message);
     this.name = 'AuthRequiredError';
-    this.status = 401;
+    this.status = status;
   }
 }
 
