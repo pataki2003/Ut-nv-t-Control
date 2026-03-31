@@ -1,4 +1,9 @@
-export type ImportStatus = 'queued' | 'processing' | 'completed' | 'failed';
+export type ImportStatus =
+  | 'queued'
+  | 'processing'
+  | 'completed'
+  | 'completed_with_errors'
+  | 'failed';
 
 export interface ImportJob {
   id: string;
@@ -10,6 +15,7 @@ export interface ImportJob {
   processedRows: number;
   successfulRows: number;
   failedRows: number;
+  skippedRows: number;
   errorMessage: string | null;
   startedAt: string | null;
   completedAt: string | null;
