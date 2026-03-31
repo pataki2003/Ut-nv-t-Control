@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 import { redirect } from 'next/navigation';
 
-import { AppShell } from '@/components/layout/AppShell';
+import { AppShell } from '@/components/layout/app-shell';
 import { createClient } from '@/lib/supabase/server';
 
 type DashboardLayoutProps = {

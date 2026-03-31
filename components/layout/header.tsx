@@ -10,19 +10,19 @@ type SectionCopy = {
 const sectionCopy: Record<string, SectionCopy> = {
   '/dashboard': {
     title: 'Dashboard',
-    description: 'High-level overview for the first operational workflows.',
+    description: 'Track the current shipment picture and COD exposure at a glance.',
   },
   '/shipments': {
     title: 'Shipments',
-    description: 'A future home for COD shipment monitoring and follow-up.',
+    description: 'Review shipment records, status movement, and operational follow-up.',
   },
   '/returns': {
     title: 'Returns',
-    description: 'Reserved for return handling, triage, and resolution.',
+    description: 'Monitor return records, status progress, and linked shipment impact.',
   },
   '/import': {
-    title: 'Import',
-    description: 'Prepared for file ingestion and validation flows.',
+    title: 'Imports',
+    description: 'Upload shipment files and review import outcomes for the merchant.',
   },
 };
 
@@ -40,15 +40,15 @@ function getSectionCopy(pathname: string): SectionCopy {
   return partialMatch?.[1] ?? sectionCopy['/dashboard'];
 }
 
-export function Topbar() {
+export function Header() {
   const pathname = usePathname();
   const currentSection = getSectionCopy(pathname);
 
   return (
-    <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/75 backdrop-blur">
+    <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 backdrop-blur">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-slate-500">Utánvét Control</p>
+          <p className="text-sm font-medium text-slate-500">Merchant workspace</p>
           <p className="truncate text-xl font-semibold tracking-tight text-slate-950">
             {currentSection.title}
           </p>
@@ -57,8 +57,8 @@ export function Topbar() {
           </p>
         </div>
 
-        <div className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 shadow-sm">
-          MVP scaffold
+        <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-600 shadow-sm">
+          MVP dashboard
         </div>
       </div>
     </header>
