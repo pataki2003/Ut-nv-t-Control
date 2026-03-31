@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import type { ApiError, ApiSuccess } from '@/types/api';
+import type { ApiError, ApiSuccess } from '@/lib/types/api';
 
 export function successResponse<T>(
   data: T,
