@@ -90,12 +90,13 @@ export const codStatusSchema = z.enum(COD_STATUSES);
 export const shipmentListQuerySchema = z.object({
   page: paginationPageSchema,
   pageSize: paginationPageSizeSchema,
-  query: optionalQueryTextSchema,
+  search: optionalQueryTextSchema,
   shipmentStatus: z.preprocess(
     normalizeOptionalQueryValue,
     shipmentStatusSchema.optional()
   ),
   codStatus: z.preprocess(normalizeOptionalQueryValue, codStatusSchema.optional()),
+  courierName: optionalQueryTextSchema,
 });
 
 export const createShipmentSchema = z
@@ -110,7 +111,6 @@ export const createShipmentSchema = z
       .min(0, 'COD amount must be zero or greater.')
       .default(0),
     shipmentStatus: shipmentStatusSchema.default('created'),
-    codStatus: codStatusSchema.default('pending'),
     shippedAt: nullableDateTimeSchema,
     deliveredAt: nullableDateTimeSchema,
   })
