@@ -4,6 +4,7 @@ export type ShipmentStatus =
   | 'created'
   | 'in_transit'
   | 'delivered'
+  | 'return_initiated'
   | 'returned'
   | 'cancelled';
 
@@ -25,6 +26,7 @@ export interface Shipment {
   customerEmail: string | null;
   deliveryAddress: string | null;
   notes: string | null;
+  isReturned: boolean;
   codAmount: number;
   shipmentStatus: ShipmentStatus;
   codStatus: CodStatus;

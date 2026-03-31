@@ -1,10 +1,15 @@
 import 'server-only';
 
-import type { CreateShipmentInput, ShipmentListQuery } from '@/lib/validations/shipment';
+import type {
+  CreateShipmentInput,
+  ManualShipmentStatusUpdateInput,
+  ShipmentListQuery,
+} from '@/lib/validations/shipment';
 import type { Shipment, ShipmentDetail, ShipmentStatusHistoryEntry } from '@/lib/types/shipment';
 import type { ReturnRecord } from '@/lib/types/return';
 
 import { createClient } from '@/lib/supabase/server';
+import { deriveShipmentSideEffects } from '@/lib/utils/status';
 
 export type ShipmentsListResult = {
   items: Shipment[];
@@ -25,6 +30,7 @@ type ShipmentRow = {
   customer_email: string | null;
   delivery_address: string | null;
   notes: string | null;
+  is_returned: boolean;
   cod_amount: number | string | null;
   shipment_status: Shipment['shipmentStatus'];
   cod_status: Shipment['codStatus'];
@@ -74,6 +80,14 @@ type UpdateShipmentDetailInput = {
   notes?: string | null;
 };
 
+type UpdateShipmentStatusArgs = {
+  merchantId: string;
+  userId: string;
+  shipmentId: string;
+  currentShipment: ShipmentDetail;
+  input: ManualShipmentStatusUpdateInput;
+};
+
 function parseCodAmount(value: number | string | null) {
   if (typeof value === 'number') {
     return Number.isFinite(value) ? value : 0;
@@ -108,6 +122,7 @@ function mapShipmentRow(row: ShipmentRow): Shipment {
     customerEmail: row.customer_email,
     deliveryAddress: row.delivery_address,
     notes: row.notes,
+    isReturned: row.is_returned,
     codAmount: parseCodAmount(row.cod_amount),
     shipmentStatus: row.shipment_status,
     codStatus: row.cod_status,
@@ -204,6 +219,7 @@ export async function getShipmentsList(
         'customer_email',
         'delivery_address',
         'notes',
+        'is_returned',
         'cod_amount',
         'shipment_status',
         'cod_status',
@@ -317,6 +333,7 @@ export async function createManualShipment({
       customer_email: null,
       delivery_address: null,
       notes: null,
+      is_returned: false,
       cod_amount: input.codAmount,
       shipment_status: shipmentStatus,
       cod_status: codStatus,
@@ -335,6 +352,7 @@ export async function createManualShipment({
         'customer_email',
         'delivery_address',
         'notes',
+        'is_returned',
         'cod_amount',
         'shipment_status',
         'cod_status',
@@ -388,6 +406,7 @@ export async function getShipmentDetail(
         'customer_email',
         'delivery_address',
         'notes',
+        'is_returned',
         'cod_amount',
         'shipment_status',
         'cod_status',
@@ -479,6 +498,7 @@ export async function updateShipmentDetail({
         'customer_email',
         'delivery_address',
         'notes',
+        'is_returned',
         'cod_amount',
         'shipment_status',
         'cod_status',
@@ -507,14 +527,31 @@ export async function updateShipmentDetail({
     nextCodAmount
   );
 
-  const updatePayload: Record<string, unknown> = {
-    recipient_name: input.customerName,
-    recipient_phone: input.customerPhone,
-    customer_email: input.customerEmail,
-    delivery_address: input.deliveryAddress,
-    carrier_name: input.courierName,
-    notes: input.notes,
-  };
+  const updatePayload: Record<string, unknown> = {};
+
+  if (input.customerName !== undefined) {
+    updatePayload.recipient_name = input.customerName;
+  }
+
+  if (input.customerPhone !== undefined) {
+    updatePayload.recipient_phone = input.customerPhone;
+  }
+
+  if (input.customerEmail !== undefined) {
+    updatePayload.customer_email = input.customerEmail;
+  }
+
+  if (input.deliveryAddress !== undefined) {
+    updatePayload.delivery_address = input.deliveryAddress;
+  }
+
+  if (input.courierName !== undefined) {
+    updatePayload.carrier_name = input.courierName;
+  }
+
+  if (input.notes !== undefined) {
+    updatePayload.notes = input.notes;
+  }
 
   if (nextCodAmount !== undefined) {
     updatePayload.cod_amount = nextCodAmount;
@@ -532,4 +569,75 @@ export async function updateShipmentDetail({
   }
 
   return getShipmentDetail(merchantId, shipmentId);
+}
+
+export async function updateShipmentStatus({
+  merchantId,
+  userId,
+  shipmentId,
+  currentShipment,
+  input,
+}: UpdateShipmentStatusArgs): Promise<ShipmentDetail> {
+  const supabase = await createClient();
+  const sideEffects = deriveShipmentSideEffects(
+    {
+      deliveredAt: currentShipment.deliveredAt,
+      isReturned: currentShipment.isReturned,
+      codStatus: currentShipment.codStatus,
+    },
+    input.shipmentStatus,
+    input.codStatus
+  );
+
+  const { error: shipmentUpdateError } = await supabase
+    .from('shipments')
+    .update({
+      shipment_status: input.shipmentStatus,
+      cod_status: sideEffects.nextCodStatus,
+      delivered_at: sideEffects.deliveredAt,
+      is_returned: sideEffects.isReturned,
+    })
+    .eq('merchant_id', merchantId)
+    .eq('id', shipmentId);
+
+  if (shipmentUpdateError) {
+    throw shipmentUpdateError;
+  }
+
+  if (sideEffects.shouldCreateReturn && !currentShipment.returnRecord) {
+    const { error: returnCreateError } = await supabase
+      .from('returns')
+      .insert({
+        merchant_id: merchantId,
+        shipment_id: shipmentId,
+        return_status: 'requested',
+      });
+
+    if (returnCreateError) {
+      throw returnCreateError;
+    }
+  }
+
+  const { error: historyInsertError } = await supabase
+    .from('shipment_status_history')
+    .insert({
+      merchant_id: merchantId,
+      shipment_id: shipmentId,
+      status: input.shipmentStatus,
+      source: 'manual',
+      note: input.note ?? null,
+      changed_by: userId,
+    });
+
+  if (historyInsertError) {
+    throw historyInsertError;
+  }
+
+  const updatedShipment = await getShipmentDetail(merchantId, shipmentId);
+
+  if (!updatedShipment) {
+    throw new Error('Shipment detail was not found after the status update.');
+  }
+
+  return updatedShipment;
 }
