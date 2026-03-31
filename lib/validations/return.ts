@@ -30,23 +30,6 @@ function normalizeOptionalTextValue(value: unknown) {
   return trimmedValue === '' ? null : trimmedValue;
 }
 
-function normalizeOptionalDateValue(value: unknown) {
-  if (value === undefined) {
-    return undefined;
-  }
-
-  if (value === null) {
-    return null;
-  }
-
-  if (typeof value !== 'string') {
-    return value;
-  }
-
-  const trimmedValue = value.trim();
-  return trimmedValue === '' ? null : trimmedValue;
-}
-
 function hasChanges(payload: Record<string, unknown>) {
   return Object.values(payload).some((value) => value !== undefined);
 }
@@ -61,18 +44,6 @@ const nullableTextSchema = z.preprocess(
   z.string().trim().min(1).nullable().optional()
 );
 
-const nullableDateTimeSchema = z.preprocess(
-  normalizeOptionalDateValue,
-  z
-    .string()
-    .trim()
-    .refine((value) => !Number.isNaN(Date.parse(value)), {
-      message: 'Enter a valid date.',
-    })
-    .nullable()
-    .optional()
-);
-
 export const returnStatusSchema = z.enum(RETURN_STATUSES);
 
 export const returnsListQuerySchema = z.object({
@@ -84,7 +55,7 @@ export const returnsListQuerySchema = z.object({
     normalizeOptionalQueryValue,
     z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).default(20)
   ),
-  query: optionalQueryTextSchema,
+  search: optionalQueryTextSchema,
   returnStatus: z.preprocess(
     normalizeOptionalQueryValue,
     returnStatusSchema.optional()
@@ -96,8 +67,6 @@ export const updateReturnSchema = z
     returnStatus: returnStatusSchema.optional(),
     reason: nullableTextSchema,
     notes: nullableTextSchema,
-    receivedAt: nullableDateTimeSchema,
-    resolvedAt: nullableDateTimeSchema,
   })
   .strict()
   .refine(hasChanges, {

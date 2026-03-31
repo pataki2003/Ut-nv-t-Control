@@ -618,6 +618,20 @@ export async function updateShipmentStatus({
     }
   }
 
+  if (input.shipmentStatus === 'return_initiated') {
+    const { error: returnFlagUpdateError } = await supabase
+      .from('shipments')
+      .update({
+        is_returned: true,
+      })
+      .eq('merchant_id', merchantId)
+      .eq('id', shipmentId);
+
+    if (returnFlagUpdateError) {
+      throw returnFlagUpdateError;
+    }
+  }
+
   const { error: historyInsertError } = await supabase
     .from('shipment_status_history')
     .insert({
