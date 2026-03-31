@@ -1,7 +1,8 @@
 import 'server-only';
 
 import type { CreateShipmentInput, ShipmentListQuery } from '@/lib/validations/shipment';
-import type { Shipment } from '@/lib/types/shipment';
+import type { Shipment, ShipmentDetail, ShipmentStatusHistoryEntry } from '@/lib/types/shipment';
+import type { ReturnRecord } from '@/lib/types/return';
 
 import { createClient } from '@/lib/supabase/server';
 
@@ -21,6 +22,9 @@ type ShipmentRow = {
   carrier_name: string | null;
   recipient_name: string | null;
   recipient_phone: string | null;
+  customer_email: string | null;
+  delivery_address: string | null;
+  notes: string | null;
   cod_amount: number | string | null;
   shipment_status: Shipment['shipmentStatus'];
   cod_status: Shipment['codStatus'];
@@ -31,14 +35,43 @@ type ShipmentRow = {
 };
 
 type ShipmentStatusHistoryRow = {
+  id: string;
+  merchant_id: string;
   shipment_id: string;
+  status: Shipment['shipmentStatus'];
+  source: string;
+  note: string | null;
+  changed_by: string | null;
   created_at: string;
+};
+
+type ReturnRow = {
+  id: string;
+  merchant_id: string;
+  shipment_id: string;
+  return_status: ReturnRecord['returnStatus'];
+  reason: string | null;
+  notes: string | null;
+  received_at: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 type CreateManualShipmentArgs = {
   merchantId: string;
   userId: string;
   input: CreateShipmentInput;
+};
+
+type UpdateShipmentDetailInput = {
+  customerName?: string | null;
+  customerPhone?: string | null;
+  customerEmail?: string | null;
+  deliveryAddress?: string | null;
+  courierName?: string | null;
+  codAmount?: number;
+  notes?: string | null;
 };
 
 function parseCodAmount(value: number | string | null) {
@@ -72,6 +105,9 @@ function mapShipmentRow(row: ShipmentRow): Shipment {
     carrierName: row.carrier_name,
     recipientName: row.recipient_name,
     recipientPhone: row.recipient_phone,
+    customerEmail: row.customer_email,
+    deliveryAddress: row.delivery_address,
+    notes: row.notes,
     codAmount: parseCodAmount(row.cod_amount),
     shipmentStatus: row.shipment_status,
     codStatus: row.cod_status,
@@ -99,6 +135,56 @@ function getDerivedCodStatus(codAmount: number) {
   return codAmount > 0 ? 'pending' : 'not_applicable';
 }
 
+function mapShipmentStatusHistoryRow(
+  row: ShipmentStatusHistoryRow
+): ShipmentStatusHistoryEntry {
+  return {
+    id: row.id,
+    merchantId: row.merchant_id,
+    shipmentId: row.shipment_id,
+    status: row.status,
+    source: row.source,
+    note: row.note,
+    changedBy: row.changed_by,
+    createdAt: row.created_at,
+  };
+}
+
+function mapReturnRow(row: ReturnRow): ReturnRecord {
+  return {
+    id: row.id,
+    merchantId: row.merchant_id,
+    shipmentId: row.shipment_id,
+    returnStatus: row.return_status,
+    reason: row.reason,
+    notes: row.notes,
+    receivedAt: row.received_at,
+    resolvedAt: row.resolved_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    shipment: null,
+  };
+}
+
+function getNextCodStatus(
+  currentCodStatus: Shipment['codStatus'],
+  nextCodAmount?: number
+) {
+  if (nextCodAmount === undefined) {
+    return currentCodStatus;
+  }
+
+  if (nextCodAmount === 0) {
+    return currentCodStatus === 'collected' ? 'collected' : 'not_applicable';
+  }
+
+  if (currentCodStatus === 'not_applicable') {
+    return 'pending';
+  }
+
+  return currentCodStatus;
+}
+
 export async function getShipmentsList(
   merchantId: string,
   filters: ShipmentListQuery
@@ -115,6 +201,9 @@ export async function getShipmentsList(
         'carrier_name',
         'recipient_name',
         'recipient_phone',
+        'customer_email',
+        'delivery_address',
+        'notes',
         'cod_amount',
         'shipment_status',
         'cod_status',
@@ -168,7 +257,7 @@ export async function getShipmentsList(
   const shipmentIds = filteredShipments.map((shipment) => shipment.id);
   const { data: historyData, error: historyError } = await supabase
     .from('shipment_status_history')
-    .select('shipment_id, created_at')
+    .select('id, merchant_id, shipment_id, status, source, note, changed_by, created_at')
     .eq('merchant_id', merchantId)
     .in('shipment_id', shipmentIds)
     .order('created_at', { ascending: false });
@@ -225,6 +314,9 @@ export async function createManualShipment({
       carrier_name: input.carrierName ?? null,
       recipient_name: input.recipientName ?? null,
       recipient_phone: input.recipientPhone ?? null,
+      customer_email: null,
+      delivery_address: null,
+      notes: null,
       cod_amount: input.codAmount,
       shipment_status: shipmentStatus,
       cod_status: codStatus,
@@ -240,6 +332,9 @@ export async function createManualShipment({
         'carrier_name',
         'recipient_name',
         'recipient_phone',
+        'customer_email',
+        'delivery_address',
+        'notes',
         'cod_amount',
         'shipment_status',
         'cod_status',
@@ -272,4 +367,169 @@ export async function createManualShipment({
   }
 
   return mapShipmentRow(shipment);
+}
+
+export async function getShipmentDetail(
+  merchantId: string,
+  shipmentId: string
+): Promise<ShipmentDetail | null> {
+  const supabase = await createClient();
+  const { data: shipmentData, error: shipmentError } = await supabase
+    .from('shipments')
+    .select(
+      [
+        'id',
+        'merchant_id',
+        'tracking_number',
+        'order_number',
+        'carrier_name',
+        'recipient_name',
+        'recipient_phone',
+        'customer_email',
+        'delivery_address',
+        'notes',
+        'cod_amount',
+        'shipment_status',
+        'cod_status',
+        'shipped_at',
+        'delivered_at',
+        'created_at',
+        'updated_at',
+      ].join(', ')
+    )
+    .eq('merchant_id', merchantId)
+    .eq('id', shipmentId)
+    .maybeSingle();
+
+  if (shipmentError) {
+    throw shipmentError;
+  }
+
+  if (!shipmentData) {
+    return null;
+  }
+
+  const shipment = mapShipmentRow(shipmentData as unknown as ShipmentRow);
+
+  const { data: historyData, error: historyError } = await supabase
+    .from('shipment_status_history')
+    .select('id, merchant_id, shipment_id, status, source, note, changed_by, created_at')
+    .eq('merchant_id', merchantId)
+    .eq('shipment_id', shipmentId)
+    .order('created_at', { ascending: false });
+
+  if (historyError) {
+    throw historyError;
+  }
+
+  const { data: returnData, error: returnError } = await supabase
+    .from('returns')
+    .select(
+      [
+        'id',
+        'merchant_id',
+        'shipment_id',
+        'return_status',
+        'reason',
+        'notes',
+        'received_at',
+        'resolved_at',
+        'created_at',
+        'updated_at',
+      ].join(', ')
+    )
+    .eq('merchant_id', merchantId)
+    .eq('shipment_id', shipmentId)
+    .maybeSingle();
+
+  if (returnError) {
+    throw returnError;
+  }
+
+  return {
+    ...shipment,
+    statusHistory: ((historyData ?? []) as unknown as ShipmentStatusHistoryRow[]).map(
+      mapShipmentStatusHistoryRow
+    ),
+    returnRecord: returnData ? mapReturnRow(returnData as unknown as ReturnRow) : null,
+  };
+}
+
+export async function updateShipmentDetail({
+  merchantId,
+  shipmentId,
+  input,
+}: {
+  merchantId: string;
+  shipmentId: string;
+  input: UpdateShipmentDetailInput;
+}): Promise<ShipmentDetail | null> {
+  const supabase = await createClient();
+  const { data: currentShipmentData, error: currentShipmentError } = await supabase
+    .from('shipments')
+    .select(
+      [
+        'id',
+        'merchant_id',
+        'tracking_number',
+        'order_number',
+        'carrier_name',
+        'recipient_name',
+        'recipient_phone',
+        'customer_email',
+        'delivery_address',
+        'notes',
+        'cod_amount',
+        'shipment_status',
+        'cod_status',
+        'shipped_at',
+        'delivered_at',
+        'created_at',
+        'updated_at',
+      ].join(', ')
+    )
+    .eq('merchant_id', merchantId)
+    .eq('id', shipmentId)
+    .maybeSingle();
+
+  if (currentShipmentError) {
+    throw currentShipmentError;
+  }
+
+  if (!currentShipmentData) {
+    return null;
+  }
+
+  const currentShipment = currentShipmentData as unknown as ShipmentRow;
+  const nextCodAmount = input.codAmount;
+  const nextCodStatus = getNextCodStatus(
+    currentShipment.cod_status,
+    nextCodAmount
+  );
+
+  const updatePayload: Record<string, unknown> = {
+    recipient_name: input.customerName,
+    recipient_phone: input.customerPhone,
+    customer_email: input.customerEmail,
+    delivery_address: input.deliveryAddress,
+    carrier_name: input.courierName,
+    notes: input.notes,
+  };
+
+  if (nextCodAmount !== undefined) {
+    updatePayload.cod_amount = nextCodAmount;
+    updatePayload.cod_status = nextCodStatus;
+  }
+
+  const { error: updateError } = await supabase
+    .from('shipments')
+    .update(updatePayload)
+    .eq('merchant_id', merchantId)
+    .eq('id', shipmentId);
+
+  if (updateError) {
+    throw updateError;
+  }
+
+  return getShipmentDetail(merchantId, shipmentId);
 }

@@ -118,17 +118,19 @@ export const createShipmentSchema = z
 
 export const updateShipmentSchema = z
   .object({
-    trackingNumber: z.string().trim().min(1, 'Tracking number is required.').optional(),
-    orderNumber: nullableTextSchema,
-    carrierName: nullableTextSchema,
-    recipientName: nullableTextSchema,
-    recipientPhone: nullableTextSchema,
+    customerName: nullableTextSchema,
+    customerPhone: nullableTextSchema,
+    customerEmail: z.preprocess(
+      normalizeOptionalTextValue,
+      z.string().trim().email('Enter a valid email address.').nullable().optional()
+    ),
+    deliveryAddress: nullableTextSchema,
+    courierName: nullableTextSchema,
     codAmount: z.coerce
       .number()
       .min(0, 'COD amount must be zero or greater.')
       .optional(),
-    shippedAt: nullableDateTimeSchema,
-    deliveredAt: nullableDateTimeSchema,
+    notes: nullableTextSchema,
   })
   .strict()
   .refine(hasChanges, {

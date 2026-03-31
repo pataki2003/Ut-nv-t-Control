@@ -22,6 +22,9 @@ export interface Shipment {
   carrierName: string | null;
   recipientName: string | null;
   recipientPhone: string | null;
+  customerEmail: string | null;
+  deliveryAddress: string | null;
+  notes: string | null;
   codAmount: number;
   shipmentStatus: ShipmentStatus;
   codStatus: CodStatus;
@@ -36,12 +39,13 @@ export interface ShipmentStatusHistoryEntry {
   merchantId: string;
   shipmentId: string;
   status: ShipmentStatus;
+  source: string;
   note: string | null;
   changedBy: string | null;
   createdAt: string;
 }
 
 export interface ShipmentDetail extends Shipment {
-  statusHistory?: ShipmentStatusHistoryEntry[];
-  returnRecord?: ReturnRecord | null;
+  statusHistory: ShipmentStatusHistoryEntry[];
+  returnRecord: ReturnRecord | null;
 }
