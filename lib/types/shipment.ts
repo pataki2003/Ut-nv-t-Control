@@ -30,6 +30,7 @@ export interface Shipment {
   codAmount: number;
   shipmentStatus: ShipmentStatus;
   codStatus: CodStatus;
+  lastStatusAt: string | null;
   shippedAt: string | null;
   deliveredAt: string | null;
   createdAt: string;

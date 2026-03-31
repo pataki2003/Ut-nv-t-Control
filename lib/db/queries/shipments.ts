@@ -110,7 +110,10 @@ function toTimestamp(value: string | null | undefined) {
   return Number.isNaN(parsedValue) ? 0 : parsedValue;
 }
 
-function mapShipmentRow(row: ShipmentRow): Shipment {
+function mapShipmentRow(
+  row: ShipmentRow,
+  lastStatusAt: string | null = row.created_at
+): Shipment {
   return {
     id: row.id,
     merchantId: row.merchant_id,
@@ -126,6 +129,7 @@ function mapShipmentRow(row: ShipmentRow): Shipment {
     codAmount: parseCodAmount(row.cod_amount),
     shipmentStatus: row.shipment_status,
     codStatus: row.cod_status,
+    lastStatusAt,
     shippedAt: row.shipped_at,
     deliveredAt: row.delivered_at,
     createdAt: row.created_at,
@@ -301,7 +305,12 @@ export async function getShipmentsList(
   const startIndex = (filters.page - 1) * filters.pageSize;
   const paginatedShipments = filteredShipments
     .slice(startIndex, startIndex + filters.pageSize)
-    .map(mapShipmentRow);
+    .map((shipment) =>
+      mapShipmentRow(
+        shipment,
+        latestStatusByShipmentId.get(shipment.id) ?? shipment.created_at
+      )
+    );
 
   return {
     items: paginatedShipments,
@@ -384,7 +393,7 @@ export async function createManualShipment({
     throw historyError;
   }
 
-  return mapShipmentRow(shipment);
+  return mapShipmentRow(shipment, shipment.created_at);
 }
 
 export async function getShipmentDetail(
@@ -428,8 +437,6 @@ export async function getShipmentDetail(
     return null;
   }
 
-  const shipment = mapShipmentRow(shipmentData as unknown as ShipmentRow);
-
   const { data: historyData, error: historyError } = await supabase
     .from('shipment_status_history')
     .select('id, merchant_id, shipment_id, status, source, note, changed_by, created_at')
@@ -440,6 +447,13 @@ export async function getShipmentDetail(
   if (historyError) {
     throw historyError;
   }
+
+  const historyRows = (historyData ?? []) as unknown as ShipmentStatusHistoryRow[];
+  const shipment = mapShipmentRow(
+    shipmentData as unknown as ShipmentRow,
+    historyRows[0]?.created_at ??
+      (shipmentData as unknown as ShipmentRow).created_at
+  );
 
   const { data: returnData, error: returnError } = await supabase
     .from('returns')
@@ -467,9 +481,7 @@ export async function getShipmentDetail(
 
   return {
     ...shipment,
-    statusHistory: ((historyData ?? []) as unknown as ShipmentStatusHistoryRow[]).map(
-      mapShipmentStatusHistoryRow
-    ),
+    statusHistory: historyRows.map(mapShipmentStatusHistoryRow),
     returnRecord: returnData ? mapReturnRow(returnData as unknown as ReturnRow) : null,
   };
 }
